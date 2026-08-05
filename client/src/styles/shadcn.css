@@ -1,0 +1,138 @@
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@import "tw-animate-css";
+
+@source "../components/RecordsModal.tsx";
+@source "../components/ui/**/*.tsx";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Lumi green theme — light product UI (scoped tokens for shadcn) */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.995 0.004 145);
+  --foreground: oklch(0.28 0.02 145);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.28 0.02 145);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.28 0.02 145);
+  --primary: oklch(0.68 0.09 145);
+  --primary-foreground: oklch(0.99 0.01 145);
+  --secondary: oklch(0.96 0.02 145);
+  --secondary-foreground: oklch(0.35 0.05 145);
+  --muted: oklch(0.96 0.015 145);
+  --muted-foreground: oklch(0.5 0.02 145);
+  --accent: oklch(0.95 0.03 145);
+  --accent-foreground: oklch(0.35 0.06 145);
+  --destructive: oklch(0.58 0.2 25);
+  --border: oklch(0.9 0.02 145);
+  --input: oklch(0.9 0.02 145);
+  --ring: oklch(0.68 0.09 145);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) * 0.75);
+  --radius-md: calc(var(--radius) * 0.875);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+.records-shadcn {
+  color: var(--foreground);
+}
+.records-shadcn *,
+.records-shadcn *::before,
+.records-shadcn *::after {
+  border-color: var(--border);
+  box-sizing: border-box;
+}
+
+/* 覆盖 app.css 的 button { background: none }，保证字色可见 */
+.modal-records button.records-btn,
+.records-shadcn button.records-btn {
+  border-style: solid;
+  border-width: 1px;
+  font-weight: 600;
+}
+.modal-records button.records-btn-primary,
+.records-shadcn button.records-btn-primary {
+  background: linear-gradient(135deg, #8ccf8a, #7fb77e) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+.modal-records button.records-btn-primary:hover,
+.records-shadcn button.records-btn-primary:hover {
+  filter: brightness(0.96);
+}
+.modal-records button.records-btn-outline,
+.records-shadcn button.records-btn-outline {
+  background: #ffffff !important;
+  color: #2d3436 !important;
+  border-color: #d9ead9 !important;
+}
+.modal-records button.records-btn-outline:hover,
+.records-shadcn button.records-btn-outline:hover {
+  background: #eef6ee !important;
+  color: #5f9a5e !important;
+}
+
+/* 双人/单人 Tabs */
+.records-shadcn .records-tabs-list {
+  background: #e8f3e8 !important;
+  border: 1px solid #d9ead9;
+  height: 40px;
+  padding: 3px;
+}
+.records-shadcn .records-tabs-trigger {
+  color: #636e72 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.records-shadcn .records-tabs-trigger[data-state='active'] {
+  background: linear-gradient(135deg, #8ccf8a, #7fb77e) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(127, 183, 126, 0.28) !important;
+}
+
+/* 详情聊天气泡（对齐群聊配色） */
+.records-msg-scroll {
+  background: #f7faf6 !important;
+  border-color: #e8f0e8 !important;
+}
+.records-msg-bubble--me {
+  background: linear-gradient(135deg, #80c782, #5fa965) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-bottom-right-radius: 4px !important;
+  box-shadow: 0 4px 12px rgba(95, 169, 101, 0.2);
+}
+.records-msg-bubble--other {
+  background: #edf6ed !important;
+  color: #2d3436 !important;
+  border: 1px solid #d9ead9 !important;
+  border-bottom-left-radius: 4px !important;
+}
+.records-msg-bubble--lumi {
+  background: linear-gradient(135deg, #edf7ed, #e2f1e2) !important;
+  color: #2d3436 !important;
+  border: 1px solid #d4e8d4 !important;
+  border-bottom-left-radius: 4px !important;
+}
