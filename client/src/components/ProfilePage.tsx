@@ -28,6 +28,7 @@ export function ProfilePage(props: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [nameDraft, setNameDraft] = useState(profile.displayName);
   const [mbtiDraft, setMbtiDraft] = useState(profile.mbti);
+  const [interestDraft, setInterestDraft] = useState<string[]>(profile.interests || []);
   const [quizOpen, setQuizOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
@@ -36,12 +37,19 @@ export function ProfilePage(props: Props) {
   useEffect(() => {
     setNameDraft(profile.displayName);
     setMbtiDraft(profile.mbti);
-  }, [profile.displayName, profile.mbti]);
+    setInterestDraft(profile.interests || []);
+  }, [profile.displayName, profile.mbti, profile.interests]);
 
   const short = shortFromName(profile.displayName, me.shortName);
   const syncHint = props.groupNicknameCustomized
     ? `群昵称已单独设置（当前「${props.groupNickname || '—'}」），修改个人昵称不会同步到群内`
     : '群昵称尚未单独修改，保存个人昵称会同步到群内';
+
+  const interestsDirty = useMemo(() => {
+    const a = [...interestDraft].sort().join('\0');
+    const b = [...(profile.interests || [])].sort().join('\0');
+    return a !== b;
+  }, [interestDraft, profile.interests]);
 
   async function savePatch(patch: Partial<PersonProfile>) {
     await props.onSave(patch);
@@ -60,7 +68,6 @@ export function ProfilePage(props: Props) {
     const reader = new FileReader();
     reader.onload = () => {
       const data = String(reader.result || '');
-      // 过大则尝试压缩
       const img = new Image();
       img.onload = () => {
         const max = 512;
@@ -86,10 +93,12 @@ export function ProfilePage(props: Props) {
   }
 
   function toggleInterest(tag: string) {
-    const set = new Set(profile.interests);
-    if (set.has(tag)) set.delete(tag);
-    else set.add(tag);
-    void savePatch({ interests: [...set] });
+    setInterestDraft((prev) => {
+      const set = new Set(prev);
+      if (set.has(tag)) set.delete(tag);
+      else set.add(tag);
+      return [...set];
+    });
   }
 
   function startQuiz() {
@@ -202,28 +211,6 @@ export function ProfilePage(props: Props) {
       </section>
 
       <section className="profile-card">
-        <div className="profile-field-label">二维码</div>
-        <button
-          type="button"
-          className="profile-qr-entry"
-          onClick={() => setQrOpen(true)}
-        >
-          <span className="profile-qr-icon" aria-hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <path d="M14 14h3v3M20 14v6M14 20h3" />
-            </svg>
-          </span>
-          <span>
-            <strong>我的二维码</strong>
-            <em>点击查看（落地页扫码稍后接入）</em>
-          </span>
-        </button>
-      </section>
-
-      <section className="profile-card">
         <div className="profile-field-label">MBTI</div>
         <div className="info-edit-row">
           <select
@@ -276,7 +263,7 @@ export function ProfilePage(props: Props) {
             <button
               key={tag}
               type="button"
-              className={`profile-chip ${profile.interests.includes(tag) ? 'active' : ''}`}
+              className={`profile-chip ${interestDraft.includes(tag) ? 'active' : ''}`}
               disabled={busy}
               onClick={() => toggleInterest(tag)}
             >
@@ -284,6 +271,41 @@ export function ProfilePage(props: Props) {
             </button>
           ))}
         </div>
+        <div className="info-edit-row" style={{ marginTop: 12 }}>
+          <p className="profile-field-hint" style={{ flex: 1, margin: 0 }}>
+            {interestsDirty ? '已修改，请点保存' : '选择兴趣后点保存'}
+          </p>
+          <button
+            type="button"
+            className="btn secondary info-save-btn"
+            disabled={busy || !interestsDirty}
+            onClick={() => void savePatch({ interests: interestDraft })}
+          >
+            保存
+          </button>
+        </div>
+      </section>
+
+      <section className="profile-card">
+        <div className="profile-field-label">二维码</div>
+        <button
+          type="button"
+          className="profile-qr-entry"
+          onClick={() => setQrOpen(true)}
+        >
+          <span className="profile-qr-icon" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <path d="M14 14h3v3M20 14v6M14 20h3" />
+            </svg>
+          </span>
+          <span>
+            <strong>我的二维码</strong>
+            <em>点击查看（落地页扫码稍后接入）</em>
+          </span>
+        </button>
       </section>
 
       {qrOpen && (

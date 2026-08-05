@@ -381,16 +381,37 @@ export default function App() {
   }, [cloudEnabled]);
 
   useEffect(() => {
-    cloudStatus()
-      .then((s) => {
-        const on = Boolean(s.supabase);
-        cloudEnabledRef.current = on;
-        setCloudEnabled(on);
-      })
-      .catch(() => {
-        cloudEnabledRef.current = false;
-        setCloudEnabled(false);
-      });
+    let cancelled = false;
+    async function probe() {
+      for (let i = 0; i < 4; i++) {
+        try {
+          const s = await cloudStatus();
+          if (cancelled) return;
+          const on = Boolean(s.supabase);
+          cloudEnabledRef.current = on;
+          setCloudEnabled(on);
+          return;
+        } catch {
+          await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+        }
+      }
+      if (cancelled) return;
+      // 线上站禁止回退本机 Socket
+      const host = window.location.hostname;
+      const isLocal =
+        host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+      cloudEnabledRef.current = false;
+      setCloudEnabled(false);
+      if (!isLocal) {
+        setError(
+          '云端接口暂不可用。请稍后刷新；若持续失败，到 Vercel → Settings → Environment Variables 确认已配置 SUPABASE_URL 与 SUPABASE_SERVICE_ROLE_KEY，并 Redeploy。'
+        );
+      }
+    }
+    void probe();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -836,6 +857,14 @@ export default function App() {
     setBusy(true);
     setError('');
     try {
+      const host = window.location.hostname;
+      const isLocal =
+        host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+      if (!isLocal) {
+        throw new Error(
+          '当前是线上环境，应使用云端接口。请刷新页面后重试；若仍失败，检查 Vercel 环境变量与部署状态。'
+        );
+      }
       const s = getSocket();
       if (!s.connected) {
         throw new Error('未连上服务器。请确认本机已运行 npm run dev（需要 5173 和 3001 都正常）。');
@@ -929,6 +958,10 @@ export default function App() {
       alert('请输入昵称');
       return;
     }
+    if (cloudEnabled === null) {
+      alert('正在连接云端，请稍候再试');
+      return;
+    }
     setBusy(true);
     try {
       if (cloudEnabled === true) {
@@ -953,6 +986,15 @@ export default function App() {
           room: null,
         });
         setScreen('home');
+        return;
+      }
+      const host = window.location.hostname;
+      const isLocal =
+        host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+      if (!isLocal) {
+        alert(
+          '云端未就绪：请到 Vercel 配置 SUPABASE_URL 与 SUPABASE_SERVICE_ROLE_KEY 后重新部署，再刷新页面。'
+        );
         return;
       }
       const res = await emitAck<Ack>('login', { nickname: nick });
@@ -1010,6 +1052,10 @@ export default function App() {
   }
 
   async function createRoom() {
+    if (cloudEnabled === null) {
+      alert('正在连接云端，请稍候再试');
+      return;
+    }
     if (cloudEnabled === true && userId) {
       await runCloud(async () => {
         const created = await cloudCreateRoom(userId, { aiRole: createAiRole });
@@ -1025,6 +1071,12 @@ export default function App() {
         setCreateRoomOpen(false);
         enterDual();
       });
+      return;
+    }
+    if (cloudEnabled !== true) {
+      alert(
+        '云端未就绪，无法创建群聊。请刷新页面；若仍失败，检查 Vercel 的 Supabase 环境变量。'
+      );
       return;
     }
     await run(async () => {
@@ -1607,13 +1659,18 @@ export default function App() {
             type="button"
             className="btn"
             style={{ marginTop: 16, width: '100%' }}
-            disabled={busy || !loginNickname.trim()}
+            disabled={busy || !loginNickname.trim() || cloudEnabled === null}
             onClick={() => void loginWithNickname()}
           >
             {busy ? (
               <span className="btn-loading">
                 <span className="spinner" />
                 进入中…
+              </span>
+            ) : cloudEnabled === null ? (
+              <span className="btn-loading">
+                <span className="spinner" />
+                连接中…
               </span>
             ) : (
               '进入'

@@ -18,10 +18,18 @@ if (import.meta.hot) {
 
 export function getSocket() {
   if (!socket) {
+    // 生产站（Vercel）不要连 Socket：没有本机 3001，会误导成「未连上服务器」
+    const host =
+      typeof window !== 'undefined' ? window.location.hostname : '';
+    const isLocal =
+      !host ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.endsWith('.local');
     socket = io(url, {
       transports: ['websocket', 'polling'],
-      autoConnect: true,
-      reconnection: true,
+      autoConnect: isLocal,
+      reconnection: isLocal,
       reconnectionAttempts: 20,
       reconnectionDelay: 800,
     });
