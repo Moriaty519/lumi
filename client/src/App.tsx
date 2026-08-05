@@ -1105,6 +1105,10 @@ export default function App() {
       alert('请输入房间码');
       return;
     }
+    if (cloudEnabled === null) {
+      alert('正在连接云端，请稍候再试');
+      return;
+    }
     if (cloudEnabled === true && userId) {
       await runCloud(async () => {
         const joined = await cloudJoinRoom(userId, { code });
@@ -1139,15 +1143,23 @@ export default function App() {
       enterDual();
       return;
     }
+    if (cloudEnabled === null) {
+      alert('正在连接云端，请稍候再试');
+      return;
+    }
     if (cloudEnabled === true && userId) {
-      await run(async () => {
+      await runCloud(async () => {
         const joined = await cloudJoinRoom(userId, { roomId });
         const pull = await cloudPullMessages(userId, joined.room.id);
         setState((prev) =>
-          applyCloudRoomSnapshot(pull, userId, prev, joinedFromCloud(joined.joinedRooms))
+          applyCloudRoomSnapshot(
+            pull,
+            userId,
+            prev,
+            joinedFromCloud(joined.joinedRooms)
+          )
         );
         enterDual();
-        return { ok: true };
       });
       return;
     }
@@ -1159,6 +1171,15 @@ export default function App() {
   }
 
   async function startSingleFlow() {
+    if (cloudEnabled === null) {
+      alert('正在连接云端，请稍候再试');
+      return;
+    }
+    // 云端单人模式不依赖群聊房间
+    if (cloudEnabled === true) {
+      setScreen('single-pick');
+      return;
+    }
     if (!room) {
       await run(async () => {
         const res = await emitAck<Ack>('room:create', {});
@@ -1197,6 +1218,10 @@ export default function App() {
   /** 群聊底部「去私聊」：软切换（不计 3 次） */
   async function goPrivateSoft() {
     if (!dual || !userId || dual.completed) return;
+    if (cloudEnabled === true) {
+      setDualView('private');
+      return;
+    }
     await run(() => emitAck<Ack>('dual:go_private', {}));
     setDualView('private');
   }
@@ -1456,7 +1481,7 @@ export default function App() {
 
   async function acceptExitRound() {
     if (cloudEnabled === true && userId && room) {
-      await run(async () => {
+      await runCloud(async () => {
         const res = await cloudLeaveRoom(userId, room.id);
         const rooms = joinedFromCloud(res.joinedRooms);
         setState((prev) => ({
@@ -1483,7 +1508,6 @@ export default function App() {
         }));
         setExitOpen(false);
         setScreen('home');
-        return { ok: true, exited: true };
       });
       return;
     }
@@ -1496,10 +1520,9 @@ export default function App() {
 
   async function refreshCloudRoom() {
     if (!userId || !room) return;
-    await run(async () => {
+    await runCloud(async () => {
       const pull = await cloudPullMessages(userId, room.id);
       setState((prev) => applyCloudRoomSnapshot(pull, userId, prev));
-      return { ok: true };
     });
   }
 
