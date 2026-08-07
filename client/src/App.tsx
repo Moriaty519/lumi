@@ -34,6 +34,7 @@ import {
   cloudGetReport,
   cloudRoomEmotions,
   cloudRoomAssessment,
+  cloudUpdateRoomMeta,
   type CloudChatMessage,
   type CloudJoinedRoom,
 } from './lib/cloudApi';
@@ -1400,8 +1401,20 @@ export default function App() {
     setQuizOpen(false);
   }
 
-  async function saveDualMeta(payload: { groupName?: string; aiName?: string; nickname?: string }) {
-    if (screen !== 'dual' || !dual) return;
+  async function saveDualMeta(payload: {
+    groupName?: string;
+    aiName?: string;
+    nickname?: string;
+  }) {
+    if (screen !== 'dual' || !dual || !userId) return;
+    if (cloudEnabled === true) {
+      await runCloud(async () => {
+        await cloudUpdateRoomMeta(userId, dual.id, payload);
+        const pull = await cloudPullMessages(userId, dual.id);
+        setState((prev) => applyCloudRoomSnapshot(pull, userId, prev));
+      });
+      return;
+    }
     await run(() => emitAck<Ack>('dual:update_meta', payload));
   }
 
@@ -2349,8 +2362,8 @@ export default function App() {
                   <button
                     className="mention-item"
                     disabled={!canSend}
-                    onClick={() => insertMention('Lumi')}
-                  >
+                    onClick={() => insertMention(aiDisplayName)}
+                    >
                     <img className="mention-item-avatar img" src="/lumi-fed.png" alt={aiDisplayName} />
                     <div>
                       <div className="mention-item-name">{aiDisplayName}</div>
@@ -2497,9 +2510,15 @@ export default function App() {
                       value={text}
                       disabled={!canSend}
                       onChange={(e) => {
-                        setText(e.target.value);
+                        const v = e.target.value;
+                        setText(v);
                         e.target.style.height = 'auto';
                         e.target.style.height = `${Math.min(e.target.scrollHeight, 88)}px`;
+                        // 输入 @ 时弹出提及菜单（显示当前房间 Lumi 人设名）
+                        if (v.endsWith('@') || /(?:^|\s)@$/.test(v)) {
+                          setPlusOpen(false);
+                          setMentionOpen(true);
+                        }
                       }}
                       onFocus={() => {
                         if (stickRef.current) {
@@ -2509,6 +2528,10 @@ export default function App() {
                       onKeyDown={(e) => {
                         const ne = e.nativeEvent as KeyboardEvent;
                         if (ne.isComposing || ne.keyCode === 229) return;
+                        if (e.key === '@') {
+                          setPlusOpen(false);
+                          setMentionOpen(true);
+                        }
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           void send();

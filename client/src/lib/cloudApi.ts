@@ -296,3 +296,19 @@ export async function cloudRoomAssessment(
     { method: 'POST', body: { assessment }, userId }
   );
 }
+
+export async function cloudUpdateRoomMeta(
+  userId: string,
+  roomId: string,
+  payload: { groupName?: string; aiName?: string; nickname?: string }
+) {
+  return cloudFetch<{
+    ok: boolean;
+    room: CloudRoom;
+    nickname?: string;
+  }>(`/api/cloud/rooms/${roomId}/meta`, {
+    method: 'POST',
+    body: payload,
+    userId,
+  });
+}

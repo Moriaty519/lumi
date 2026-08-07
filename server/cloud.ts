@@ -1114,3 +1114,46 @@ export async function privateLinesForAi(
     .map((m) => `${m.sender === 'lumi' ? 'Lumi' : me}: ${m.text}`)
     .join('\n');
 }
+
+export async function updateRoomMeta(
+  roomId: string,
+  userId: string,
+  payload: { groupName?: string; aiName?: string; nickname?: string }
+) {
+  await assertActiveMember(roomId, userId);
+  const db = getSupabase();
+  const norm = (v: string) => v.trim().replace(/\s+/g, ' ').slice(0, 20);
+
+  const roomPatch: Record<string, string> = {};
+  if (typeof payload.groupName === 'string') {
+    roomPatch.group_name = norm(payload.groupName) || '树洞';
+  }
+  if (typeof payload.aiName === 'string') {
+    roomPatch.ai_name = norm(payload.aiName) || 'Lumi';
+  }
+  if (Object.keys(roomPatch).length) {
+    const { error } = await db.from('rooms').update(roomPatch).eq('id', roomId);
+    if (error) throw new Error(error.message);
+  }
+
+  let nickname: string | undefined;
+  if (typeof payload.nickname === 'string') {
+    nickname = norm(payload.nickname);
+    const { error } = await db
+      .from('room_members')
+      .update({
+        display_nickname: nickname || null,
+        nickname_customized: true,
+      })
+      .eq('room_id', roomId)
+      .eq('user_id', userId);
+    if (error) throw new Error(error.message);
+  }
+
+  const room = await getRoom(roomId);
+  if (!room) throw new Error('房间不存在');
+  return {
+    room,
+    nickname: nickname ?? (await memberNickname(roomId, userId)),
+  };
+}

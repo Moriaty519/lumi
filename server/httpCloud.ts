@@ -508,6 +508,34 @@ export function mountCloudHttpApi(app: Express) {
     })
   );
 
+  /** 更新群名 / AI 昵称 / 我的群昵称 */
+  app.post(
+    '/api/cloud/rooms/:roomId/meta',
+    asyncHandler(async (req, res) => {
+      const userId = requireUserId(req);
+      const roomId = String(req.params.roomId || '');
+      const result = await cloud.updateRoomMeta(roomId, userId, {
+        groupName:
+          typeof req.body?.groupName === 'string' ? req.body.groupName : undefined,
+        aiName: typeof req.body?.aiName === 'string' ? req.body.aiName : undefined,
+        nickname:
+          typeof req.body?.nickname === 'string' ? req.body.nickname : undefined,
+      });
+      res.json({
+        ok: true,
+        room: {
+          id: result.room.id,
+          code: result.room.code,
+          groupName: result.room.group_name,
+          aiName: result.room.ai_name,
+          aiRole: cloud.resolveRoomAiRole(result.room),
+          completed: result.room.completed,
+        },
+        nickname: result.nickname,
+      });
+    })
+  );
+
   /** 双人：标记情绪 */
   app.post(
     '/api/cloud/rooms/:roomId/emotions',

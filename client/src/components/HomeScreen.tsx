@@ -28,7 +28,7 @@ export function HomeScreen(props: HomeScreenProps) {
 }
 
 function HomeScreenV2(props: HomeScreenProps) {
-  const { me, userId, users, recordsCount, online, joinedRooms = [] } = props;
+  const { me, userId, users, recordsCount, joinedRooms = [] } = props;
   const displayName = props.displayName || me.name;
   const avatarUrl = props.avatarUrl;
 
@@ -103,20 +103,6 @@ function HomeScreenV2(props: HomeScreenProps) {
         {recordsCount > 0 ? ` · ${recordsCount}` : ''}
         <span aria-hidden> ›</span>
       </button>
-
-      {online && Object.keys(online).length > 0 && (
-        <div className="home-online">
-          {Object.keys(online).map((id) => (
-            <span key={id} className="home-online-item">
-              <span className={`dot ${online[id] ? 'on' : ''}`} />
-              {props.displayNames?.[id] ||
-                (id === userId ? displayName : users[id]?.name) ||
-                id.slice(0, 6)}
-              {id === userId ? '（我）' : ''}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

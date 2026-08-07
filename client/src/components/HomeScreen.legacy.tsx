@@ -28,7 +28,7 @@ export type HomeScreenProps = {
 };
 
 export function HomeScreenLegacy(props: HomeScreenProps) {
-  const { me, userId, users, recordsCount, online, joinedRooms = [] } = props;
+  const { me, userId, users, recordsCount, joinedRooms = [] } = props;
   const displayName = props.displayName || me.name;
 
   return (
@@ -95,18 +95,6 @@ export function HomeScreenLegacy(props: HomeScreenProps) {
         </div>
         <span className="records-entry-arrow">查看</span>
       </button>
-      {online && (
-        <div style={{ marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {Object.keys(online).map((id) => (
-            <span key={id} className="status-pill">
-              <span className={`dot ${online[id] ? 'on' : ''}`} />
-              {props.displayNames?.[id] || users[id]?.name || id.slice(0, 6)}
-              {id === userId ? '（我）' : ''}
-              {online[id] ? ' 在线' : ' 离线'}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
