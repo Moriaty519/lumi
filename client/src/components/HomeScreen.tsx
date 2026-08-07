@@ -71,6 +71,11 @@ function HomeScreenV2(props: HomeScreenProps) {
         <button type="button" className="home-action-chip" onClick={props.onStartSingle}>
           单人模式
         </button>
+        {props.onFindBuddy && (
+          <button type="button" className="home-action-chip" onClick={props.onFindBuddy}>
+            找搭子
+          </button>
+        )}
       </div>
 
       <section className="home-room-section">

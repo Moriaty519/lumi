@@ -176,12 +176,13 @@ button, a, .identity-card, .mode-card, .judge-tool-btn, .judge-more-btn, .send-b
 }
 .home-actions-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 22px;
   animation: homeModesIn 0.5s ease 0.08s both;
 }
 .home-action-chip {
-  flex: 1;
+  flex: 1 1 calc(50% - 4px);
   min-width: 0;
   padding: 10px 8px;
   border-radius: 999px;
@@ -402,6 +403,87 @@ button, a, .identity-card, .mode-card, .judge-tool-btn, .judge-more-btn, .send-b
   font-size: 12px;
   color: var(--muted);
 }
+
+.find-buddy-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.find-buddy-step-pill {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 48px;
+  text-align: right;
+}
+.find-buddy-demo-banner {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--primary-bg);
+  color: var(--muted);
+  font-size: 12px;
+}
+.find-buddy-card {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.9);
+}
+.find-buddy-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.find-buddy-blurb {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.find-buddy-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.find-buddy-block {
+  margin-top: 4px;
+}
+.find-buddy-candidates {
+  display: grid;
+  gap: 8px;
+}
+.find-buddy-candidate {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.find-buddy-candidate strong {
+  font-size: 15px;
+}
+.find-buddy-candidate span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.find-buddy-candidate em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--primary);
+}
+.find-buddy-footer {
+  margin-top: 16px;
+  padding-bottom: 8px;
+}
+.find-buddy-footer .btn {
+  width: 100%;
+}
+
 @keyframes homeHeroIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }

@@ -24,6 +24,7 @@ export type HomeScreenProps = {
   onJoinRoom: () => void;
   onEnterRoom: (roomId: string) => void;
   onStartSingle: () => void;
+  onFindBuddy?: () => void;
   onOpenRecords: () => void;
 };
 
@@ -57,6 +58,11 @@ export function HomeScreenLegacy(props: HomeScreenProps) {
         <button type="button" className="home-action-chip" onClick={props.onStartSingle}>
           单人模式
         </button>
+        {props.onFindBuddy && (
+          <button type="button" className="home-action-chip" onClick={props.onFindBuddy}>
+            找搭子
+          </button>
+        )}
       </div>
 
       <div className="home-room-section">

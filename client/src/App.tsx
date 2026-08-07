@@ -47,9 +47,17 @@ import { ProfilePage } from './components/ProfilePage';
 import { RecordsModal } from './components/RecordsModal';
 import { SheetModal } from './components/SheetModal';
 import { HomeScreen } from './components/HomeScreen';
+import { FindBuddyDemo } from './components/FindBuddyDemo';
 import { emptyPersonProfile, shortFromName } from '../../shared/profile';
 
-type Screen = 'login' | 'home' | 'profile' | 'dual' | 'single-pick' | 'single';
+type Screen =
+  | 'login'
+  | 'home'
+  | 'profile'
+  | 'dual'
+  | 'single-pick'
+  | 'single'
+  | 'find-buddy';
 type Ack = {
   ok: boolean;
   error?: string;
@@ -1743,6 +1751,7 @@ export default function App() {
           onJoinRoom={openJoinRoom}
           onEnterRoom={(id) => void enterRoomById(id)}
           onStartSingle={() => void startSingleFlow()}
+          onFindBuddy={() => setScreen('find-buddy')}
           onOpenRecords={() => setRecordsOpen(true)}
           onOpenProfile={() => setScreen('profile')}
         />
@@ -1852,6 +1861,14 @@ export default function App() {
             <span>加载中…</span>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (screen === 'find-buddy') {
+    return (
+      <div className="app-shell">
+        <FindBuddyDemo onBack={() => setScreen('home')} />
       </div>
     );
   }
