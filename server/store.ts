@@ -17,7 +17,7 @@ import type {
   UserId,
 } from '../shared/types.js';
 import { toUserProfile } from '../shared/types.js';
-import { getAiRole, isAiRoleId } from '../shared/aiRoles.js';
+import { getAiRole, isAiRoleId, normalizeRoomLabel } from '../shared/aiRoles.js';
 import {
   GAME_QUESTION_COUNT,
   formatGameResultCourtMessage,
@@ -1143,10 +1143,21 @@ export class RoomManager {
     return out;
   }
 
-  createRoom(ownerId: UserId, opts: { aiRole?: string } = {}): Store {
+  createRoom(
+    ownerId: UserId,
+    opts: { aiRole?: string; groupName?: string; aiName?: string } = {}
+  ): Store {
     let code = genRoomCode();
     while (this.byCode.has(code)) code = genRoomCode();
     const role = getAiRole(isAiRoleId(opts.aiRole) ? opts.aiRole : 'default');
+    const groupName = normalizeRoomLabel(
+      typeof opts.groupName === 'string' ? opts.groupName : role.defaultGroupName,
+      role.defaultGroupName
+    );
+    const aiName = normalizeRoomLabel(
+      typeof opts.aiName === 'string' ? opts.aiName : role.displayName,
+      role.displayName
+    );
     const info: RoomInfo = {
       id: randomUUID(),
       code,
@@ -1157,7 +1168,8 @@ export class RoomManager {
     store.addMember(ownerId);
     const dual = store.ensureDual();
     dual.aiRole = role.id;
-    dual.aiName = role.displayName;
+    dual.aiName = aiName;
+    dual.groupName = groupName;
     store.ensureWelcome(ownerId);
     store.bootstrapCourt(ownerId);
     this.rooms.set(info.id, store);

@@ -115,7 +115,12 @@ export function mountCloudHttpApi(app: Express) {
     asyncHandler(async (req, res) => {
       const userId = requireUserId(req);
       const aiRole = String(req.body?.aiRole || 'default');
-      const room = await cloud.createRoom(userId, { aiRole });
+      const room = await cloud.createRoom(userId, {
+        aiRole,
+        groupName:
+          typeof req.body?.groupName === 'string' ? req.body.groupName : undefined,
+        aiName: typeof req.body?.aiName === 'string' ? req.body.aiName : undefined,
+      });
       const joinedRooms = await cloud.listJoinedRooms(userId);
       res.json({
         ok: true,
@@ -202,6 +207,7 @@ export function mountCloudHttpApi(app: Express) {
           return {
             userId: m.user_id,
             nickname: m.display_nickname || a?.nickname || '用户',
+            nicknameCustomized: Boolean(m.nickname_customized),
             profile: a?.profile || emptyPersonProfile(a?.nickname || '用户'),
           };
         }),

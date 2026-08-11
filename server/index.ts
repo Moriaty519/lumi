@@ -627,7 +627,12 @@ io.on('connection', (socket) => {
     }
   );
 
-  socket.on('room:create', (payload: { aiRole?: string } | undefined, ack?: (r: unknown) => void) => {
+  socket.on(
+    'room:create',
+    (
+      payload: { aiRole?: string; groupName?: string; aiName?: string } | undefined,
+      ack?: (r: unknown) => void
+    ) => {
     try {
       const uid = requireUser();
       // 切换会话时只断开旧房连接，不「退出房间」（保留已加入列表记忆）
@@ -637,7 +642,11 @@ io.on('connection', (socket) => {
         socket.leave(roomChannel(roomId));
         broadcast(roomId);
       }
-      const store = roomManager.createRoom(uid, { aiRole: payload?.aiRole });
+      const store = roomManager.createRoom(uid, {
+        aiRole: payload?.aiRole,
+        groupName: payload?.groupName,
+        aiName: payload?.aiName,
+      });
       roomId = store.roomId;
       socket.data.roomId = roomId;
       store.sockets[socket.id] = uid;
@@ -654,7 +663,8 @@ io.on('connection', (socket) => {
     } catch (e) {
       ack?.({ ok: false, error: e instanceof Error ? e.message : String(e) });
     }
-  });
+  }
+  );
 
   socket.on(
     'room:join',

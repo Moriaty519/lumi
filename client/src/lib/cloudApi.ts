@@ -79,7 +79,7 @@ export async function cloudListRooms(userId: string) {
 
 export async function cloudCreateRoom(
   userId: string,
-  opts: { aiRole?: string } = {}
+  opts: { aiRole?: string; groupName?: string; aiName?: string } = {}
 ) {
   return cloudFetch<{
     ok: boolean;
@@ -87,7 +87,11 @@ export async function cloudCreateRoom(
     joinedRooms: CloudJoinedRoom[];
   }>('/api/cloud/rooms/create', {
     method: 'POST',
-    body: { aiRole: opts.aiRole || 'default' },
+    body: {
+      aiRole: opts.aiRole || 'default',
+      groupName: opts.groupName,
+      aiName: opts.aiName,
+    },
     userId,
   });
 }
@@ -119,6 +123,7 @@ export async function cloudPullMessages(userId: string, roomId: string) {
     members: {
       userId: string;
       nickname: string;
+      nicknameCustomized?: boolean;
       profile: unknown;
     }[];
     courtMessages: CloudChatMessage[];

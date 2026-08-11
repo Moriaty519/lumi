@@ -8,7 +8,7 @@ import {
   gameLevelFromPercent,
   pickGameQuestionIds,
 } from '../shared/game.js';
-import { AI_ROLES, getAiRole, isAiRoleId, type AiRoleId } from '../shared/aiRoles.js';
+import { AI_ROLES, getAiRole, isAiRoleId, normalizeRoomLabel, type AiRoleId } from '../shared/aiRoles.js';
 import type {
   AssessmentResult,
   DualGame,
@@ -108,7 +108,24 @@ export async function updateAccountProfile(
     .select('profile, nickname')
     .single();
   if (error) throw new Error(error.message);
-  return { ...emptyPersonProfile(data.nickname), ...data.profile };
+  const saved = { ...emptyPersonProfile(data.nickname), ...data.profile };
+
+  // 群昵称未单独设置时，随个人展示名同步（不标记 nickname_customized）
+  const displayName = (saved.displayName || '').trim();
+  if (displayName) {
+    const { error: syncErr } = await db
+      .from('room_members')
+      .update({ display_nickname: displayName.slice(0, 20) })
+      .eq('user_id', userId)
+      .eq('nickname_customized', false)
+      .is('left_at', null);
+    if (syncErr) {
+      // 资料已写入；群昵称同步失败不阻断
+      console.warn('sync room nickname failed', syncErr.message);
+    }
+  }
+
+  return saved;
 }
 
 export async function listJoinedRooms(userId: string): Promise<JoinedRoomSummary[]> {
@@ -187,13 +204,21 @@ async function ensureMember(roomId: string, userId: string, nickname: string) {
 
 export async function createRoom(
   userId: string,
-  opts: { aiRole?: string } = {}
+  opts: { aiRole?: string; groupName?: string; aiName?: string } = {}
 ) {
   const db = getSupabase();
   const account = await getAccount(userId);
   if (!account) throw new Error('账号不存在');
 
   const role = getAiRole(isAiRoleId(opts.aiRole) ? opts.aiRole : 'default');
+  const groupName = normalizeRoomLabel(
+    typeof opts.groupName === 'string' ? opts.groupName : role.defaultGroupName,
+    role.defaultGroupName
+  );
+  const aiName = normalizeRoomLabel(
+    typeof opts.aiName === 'string' ? opts.aiName : role.displayName,
+    role.displayName
+  );
 
   let code = genRoomCode();
   for (let i = 0; i < 8; i++) {
@@ -204,8 +229,8 @@ export async function createRoom(
 
   const baseRow = {
     code,
-    group_name: '树洞',
-    ai_name: role.displayName,
+    group_name: groupName,
+    ai_name: aiName,
     ai_role: role.id,
   };
 
@@ -219,8 +244,8 @@ export async function createRoom(
           .from('rooms')
           .insert({
             code,
-            group_name: '树洞',
-            ai_name: role.displayName,
+            group_name: groupName,
+            ai_name: aiName,
           })
           .select('*')
           .single();
@@ -247,14 +272,14 @@ export async function createRoom(
 
   await ensureMember(room.id, userId, account.nickname);
 
-  const who = role.displayName;
+  const who = aiName;
   await insertMessage({
     roomId: room.id,
     channel: 'court',
     sender: 'lumi',
     text: [
-      `欢迎来到树洞～我是 ${who}。`,
-      role.id === 'default'
+      `欢迎来到${groupName}～我是 ${who}。`,
+      role.id === 'default' || role.id === 'custom'
         ? '这里是树洞留言板：你留言后我会回复，其他人打开时再刷新查看。'
         : `当前角色：${role.label}。这里是树洞留言板：你留言后我会回复，其他人打开时再刷新查看。`,
       `房间码：${room.code}（可分享给朋友一起加入）`,
@@ -355,7 +380,7 @@ export async function listRoomMembers(roomId: string) {
   const db = getSupabase();
   const { data, error } = await db
     .from('room_members')
-    .select('user_id, display_nickname, accounts(id, nickname, profile)')
+    .select('user_id, display_nickname, nickname_customized, accounts(id, nickname, profile)')
     .eq('room_id', roomId)
     .is('left_at', null);
   if (error) throw new Error(error.message);

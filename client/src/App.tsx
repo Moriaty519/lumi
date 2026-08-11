@@ -39,7 +39,7 @@ import {
   type CloudJoinedRoom,
 } from './lib/cloudApi';
 import type { DualGame, JoinedRoomSummary, PersonProfile, Presence, SingleCase } from '../../shared/types';
-import { AI_ROLES, type AiRoleId } from '../../shared/aiRoles';
+import { CREATE_ROOM_ROLES, getAiRole, type AiRoleId } from '../../shared/aiRoles';
 import { QuizModal } from './components/QuizModal';
 import { MouthpieceModal } from './components/MouthpieceModal';
 import { GameModal } from './components/GameModal';
@@ -139,6 +139,9 @@ function applyCloudRoomSnapshot(
   const members = pull.members || [];
   const memberIds = members.map((m) => m.userId);
   const nicknames: Record<string, string> = {};
+  const nicknameCustomized: Record<string, boolean> = {
+    ...(prev?.dual?.nicknameCustomized || {}),
+  };
   const profiles: Record<string, PersonProfile> = { ...(prev?.profiles || {}) };
   const online: Record<string, boolean> = { ...(prev?.online || {}) };
   const presence: Record<string, Presence> = {};
@@ -153,6 +156,9 @@ function applyCloudRoomSnapshot(
 
   for (const m of members) {
     nicknames[m.userId] = m.nickname;
+    if (typeof m.nicknameCustomized === 'boolean') {
+      nicknameCustomized[m.userId] = m.nicknameCustomized;
+    }
     online[m.userId] = true;
     presence[m.userId] = 'court';
     emotions[m.userId] = prev?.dual?.emotions?.[m.userId] || [];
@@ -235,7 +241,7 @@ function applyCloudRoomSnapshot(
         const active = list.filter((g) => g && g.phase !== 'result');
         return active[0] || null;
       })(),
-      nicknameCustomized: prev?.dual?.nicknameCustomized || {},
+      nicknameCustomized,
     },
     single: prev?.single || {},
     online,
@@ -356,6 +362,8 @@ export default function App() {
   const [joinCodeDraft, setJoinCodeDraft] = useState('');
   const [createRoomOpen, setCreateRoomOpen] = useState(false);
   const [createAiRole, setCreateAiRole] = useState<AiRoleId>('default');
+  const [createGroupNameDraft, setCreateGroupNameDraft] = useState('树洞');
+  const [createAiNameDraft, setCreateAiNameDraft] = useState('Lumi');
   const [roomCodeCopied, setRoomCodeCopied] = useState(false);
   const [gamePickOpen, setGamePickOpen] = useState(false);
   /** 答完后本地关掉弹窗的局（不取消游戏） */
@@ -1065,9 +1073,16 @@ export default function App() {
       alert('正在连接云端，请稍候再试');
       return;
     }
+    const role = getAiRole(createAiRole);
+    const groupName = createGroupNameDraft.trim() || role.defaultGroupName;
+    const aiName = createAiNameDraft.trim() || role.displayName;
     if (cloudEnabled === true && userId) {
       await runCloud(async () => {
-        const created = await cloudCreateRoom(userId, { aiRole: createAiRole });
+        const created = await cloudCreateRoom(userId, {
+          aiRole: createAiRole,
+          groupName,
+          aiName,
+        });
         const pull = await cloudPullMessages(userId, created.room.id);
         setState((prev) =>
           applyCloudRoomSnapshot(
@@ -1089,7 +1104,11 @@ export default function App() {
       return;
     }
     await run(async () => {
-      const res = await emitAck<Ack>('room:create', { aiRole: createAiRole });
+      const res = await emitAck<Ack>('room:create', {
+        aiRole: createAiRole,
+        groupName,
+        aiName,
+      });
       if (res?.ok) {
         setCreateRoomOpen(false);
         enterDual();
@@ -1098,8 +1117,15 @@ export default function App() {
     });
   }
 
+  function selectCreateRole(roleId: AiRoleId) {
+    const role = getAiRole(roleId);
+    setCreateAiRole(roleId);
+    setCreateGroupNameDraft(role.defaultGroupName);
+    setCreateAiNameDraft(role.displayName);
+  }
+
   function openCreateRoom() {
-    setCreateAiRole('default');
+    selectCreateRole('default');
     setCreateRoomOpen(true);
   }
 
@@ -1415,11 +1441,39 @@ export default function App() {
     nickname?: string;
   }) {
     if (screen !== 'dual' || !dual || !userId) return;
-    if (cloudEnabled === true) {
+    const preferCloud =
+      cloudEnabled === true ||
+      (cloudEnabled !== false &&
+        (() => {
+          const host = window.location.hostname;
+          return !(
+            host === 'localhost' ||
+            host === '127.0.0.1' ||
+            host.endsWith('.local')
+          );
+        })());
+    if (preferCloud) {
       await runCloud(async () => {
         await cloudUpdateRoomMeta(userId, dual.id, payload);
         const pull = await cloudPullMessages(userId, dual.id);
-        setState((prev) => applyCloudRoomSnapshot(pull, userId, prev));
+        setState((prev) => {
+          const next = applyCloudRoomSnapshot(pull, userId, prev);
+          if (typeof payload.nickname === 'string') {
+            return {
+              ...next,
+              dual: next.dual
+                ? {
+                    ...next.dual,
+                    nicknameCustomized: {
+                      ...(next.dual.nicknameCustomized || {}),
+                      [userId]: true,
+                    },
+                  }
+                : next.dual,
+            };
+          }
+          return next;
+        });
       });
       return;
     }
@@ -1438,16 +1492,44 @@ export default function App() {
   }
 
   async function saveProfile(patch: Partial<PersonProfile>) {
-    if (cloudEnabled === true && userId) {
+    if (!userId) return;
+    const preferCloud =
+      cloudEnabled === true ||
+      (cloudEnabled !== false &&
+        (() => {
+          const host = window.location.hostname;
+          return !(
+            host === 'localhost' ||
+            host === '127.0.0.1' ||
+            host.endsWith('.local')
+          );
+        })());
+    if (preferCloud) {
       await runCloud(async () => {
         const res = await cloudUpdateProfile(userId, patch);
+        const saved = res.profile as PersonProfile;
         setState((prev) => {
           if (!prev) return prev;
+          let nextDual = prev.dual;
+          if (
+            nextDual &&
+            typeof patch.displayName === 'string' &&
+            !nextDual.nicknameCustomized?.[userId]
+          ) {
+            nextDual = {
+              ...nextDual,
+              nicknames: {
+                ...(nextDual.nicknames || {}),
+                [userId]: saved.displayName,
+              },
+            };
+          }
           return {
             ...prev,
+            dual: nextDual,
             profiles: {
               ...(prev.profiles || {}),
-              [userId]: res.profile as PersonProfile,
+              [userId]: saved,
             },
           };
         });
@@ -1767,7 +1849,7 @@ export default function App() {
         {createRoomOpen && (
           <SheetModal
             title="创建群聊"
-            subtitle="选择 Lumi 角色，生成群聊码后可邀请对方"
+            subtitle="选择角色，并可修改群名称与 AI 昵称"
             onClose={() => setCreateRoomOpen(false)}
             hideCloseButton
             footer={
@@ -1791,20 +1873,40 @@ export default function App() {
             }
           >
             <div className="desc" style={{ marginBottom: 12 }}>
-              选择本群的 Lumi 角色（创建后固定）。生成后会出现在「已加入的房间」列表。
+              选择本群角色（创建后固定人设）。群名称与 AI 昵称可按需修改。
             </div>
             <div className="choice-grid">
-              {AI_ROLES.map((role) => (
+              {CREATE_ROOM_ROLES.map((role) => (
                 <button
                   key={role.id}
                   type="button"
                   className={`choice-card${createAiRole === role.id ? ' selected' : ''}`}
-                  onClick={() => setCreateAiRole(role.id)}
+                  onClick={() => selectCreateRole(role.id)}
                 >
                   <strong>{role.label}</strong>
                   <span>{role.blurb}</span>
                 </button>
               ))}
+            </div>
+            <div className="info-card" style={{ marginTop: 14 }}>
+              <div className="info-label">群名称</div>
+              <input
+                className="info-input"
+                value={createGroupNameDraft}
+                maxLength={20}
+                onChange={(e) => setCreateGroupNameDraft(e.target.value)}
+                placeholder={getAiRole(createAiRole).defaultGroupName}
+              />
+            </div>
+            <div className="info-card" style={{ marginTop: 10 }}>
+              <div className="info-label">AI 昵称</div>
+              <input
+                className="info-input"
+                value={createAiNameDraft}
+                maxLength={20}
+                onChange={(e) => setCreateAiNameDraft(e.target.value)}
+                placeholder={getAiRole(createAiRole).displayName}
+              />
             </div>
           </SheetModal>
         )}
@@ -3159,17 +3261,21 @@ export default function App() {
                 className="btn"
                 disabled={busy}
                 onClick={() =>
-                  void run(async () => {
+                  void (async () => {
                     if (!metaConfirm) return;
-                    if (metaConfirm.type === 'groupName') {
-                      await saveDualMeta({ groupName: metaConfirm.value });
-                    } else if (metaConfirm.type === 'nickname') {
-                      await saveDualMeta({ nickname: metaConfirm.value });
-                    } else {
-                      await saveDualMeta({ aiName: metaConfirm.value });
+                    try {
+                      if (metaConfirm.type === 'groupName') {
+                        await saveDualMeta({ groupName: metaConfirm.value });
+                      } else if (metaConfirm.type === 'nickname') {
+                        await saveDualMeta({ nickname: metaConfirm.value });
+                      } else {
+                        await saveDualMeta({ aiName: metaConfirm.value });
+                      }
+                      setMetaConfirm(null);
+                    } catch {
+                      /* saveDualMeta / runCloud 已提示 */
                     }
-                    setMetaConfirm(null);
-                  })
+                  })()
                 }
               >
                 确认修改

@@ -33,12 +33,19 @@ export function ProfilePage(props: Props) {
   const [qrOpen, setQrOpen] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, 'a' | 'b'>>({});
+  const [savedHint, setSavedHint] = useState('');
 
   useEffect(() => {
     setNameDraft(profile.displayName);
     setMbtiDraft(profile.mbti);
     setInterestDraft(profile.interests || []);
   }, [profile.displayName, profile.mbti, profile.interests]);
+
+  useEffect(() => {
+    if (!savedHint) return;
+    const t = window.setTimeout(() => setSavedHint(''), 1800);
+    return () => window.clearTimeout(t);
+  }, [savedHint]);
 
   const short = shortFromName(profile.displayName, me.shortName);
   const syncHint = props.groupNicknameCustomized
@@ -53,6 +60,7 @@ export function ProfilePage(props: Props) {
 
   async function savePatch(patch: Partial<PersonProfile>) {
     await props.onSave(patch);
+    setSavedHint('已保存');
   }
 
   function onPickAvatar(file: File | null) {
@@ -134,7 +142,9 @@ export function ProfilePage(props: Props) {
           返回
         </button>
         <h1>个人主页</h1>
-        <span style={{ width: 48 }} />
+        <span style={{ width: 48, textAlign: 'right', fontSize: 12, opacity: 0.7 }}>
+          {savedHint || ''}
+        </span>
       </header>
 
       <section className="profile-hero">
